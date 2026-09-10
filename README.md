@@ -38,6 +38,7 @@ regression.
 ```
    This prints data inspection output, grouping/correlation results, and
    regression results to the terminal, and saves plots to `figures/`.
+
 5. (Optional) Run the Pandas vs Polars comparison:
 ```bash
    python polars_comparison.py
