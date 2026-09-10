@@ -78,6 +78,26 @@ analysis beyond the scope of this project.
 - Findings here are correlational, not causal — no claims are made about
   *why* GLD and SPX or EUR/USD move as they do.
 
+# Polars vs Pandas Performance Comparison
+
+I also compared Pandas and Polars performance on two operations: reading the
+CSV file and grouping by year to compute yearly averages (polars_comparison.py).
+
+Results were inconsistent between two separate runs — in one run Polars was
+faster at reading the CSV, but in the groupby comparison Polars was slower
+than Pandas. This inconsistency suggests the results are not reliable from a
+single run and would need to be averaged over multiple runs to draw a solid
+conclusion.
+
+More importantly, this dataset is quite small (2,666 rows), which likely
+limits any real performance difference between the two libraries. Polars is
+built on a compiled Rust engine and is generally expected to show its
+advantage on larger datasets and more complex operations, where the
+per-operation overhead becomes negligible relative to the actual work done.
+On a small dataset like this, that overhead itself (e.g. starting up
+Polars's engine) may outweigh any gains, which could explain why Polars was
+not consistently faster here.
+
 ## Files
 - `analysis.py` — main data analysis and modeling script
 - `data/gold_data_2015_25.csv` — dataset
