@@ -143,3 +143,4 @@ not consistently faster here.
 - `data/gold_data_2015_25.csv` — dataset
 - `figures/` — generated plots
 - `notebooks/rust_vs_python_intro.ipynb` — Rust ownership notebook (Question 2)
+- `polars_comparison.py` — Pandas vs Polars performance comparison
