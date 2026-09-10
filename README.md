@@ -10,6 +10,46 @@ GLD price shows a stable relationship with EUR/USD and SPX, and to practice
 basic data analysis and a first machine learning experiment with linear
 regression.
 
+## Setup & How to Run
+
+### Requirements
+- Python 3.11+
+- Rust (`rustc`/`cargo`) and the `evcxr_jupyter` kernel, for the Rust notebook (Question 2)
+- VS Code with the Python and Jupyter extensions (recommended)
+
+### Steps
+1. Clone this repository:
+```bash
+   git clone git@github.com:Yan0309/IDS706-Gold-Analysis.git
+   cd IDS706-Gold-Analysis
+```
+2. Create and activate a virtual environment:
+```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+```
+3. Install dependencies:
+```bash
+   pip install pandas matplotlib seaborn scikit-learn polars jupyter
+```
+4. Run the main analysis script:
+```bash
+   python analysis.py
+```
+   This prints data inspection output, grouping/correlation results, and
+   regression results to the terminal, and saves plots to `figures/`.
+5. (Optional) Run the Pandas vs Polars comparison:
+```bash
+   python polars_comparison.py
+```
+6. For the Rust notebook (Question 2): install the Rust Jupyter kernel with
+```bash
+   cargo install evcxr_jupyter
+   evcxr_jupyter --install
+```
+   then open `notebooks/rust_vs_python_intro.ipynb` in VS Code and select the
+   **Rust** kernel.
+
 ## Data Import & Inspection
 - Loaded the CSV with pandas and inspected it using `.head()`, `.info()`,
   and `.describe()`.
