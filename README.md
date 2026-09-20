@@ -1,6 +1,8 @@
 # IDS706-Gold-Analysis
 
-# Gold Price Analysis (2015–2025)
+[![Run Tests](https://github.com/Yan0309/IDS706-Gold-Analysis/actions/workflows/tests.yml/badge.svg)](https://github.com/Yan0309/IDS706-Gold-Analysis/actions/workflows/tests.yml)
+
+# Week 2: Gold Price Analysis (2015–2025)
 
 ## Overview
 This project explores the `gold_data_2015_25.csv` dataset, which contains daily
@@ -30,20 +32,23 @@ regression.
 ```
 3. Install dependencies:
 ```bash
-   pip install pandas matplotlib seaborn scikit-learn polars jupyter
+   pip install pandas matplotlib seaborn scikit-learn polars jupyter pytest
 ```
 4. Run the main analysis script:
 ```bash
-   python analysis.py
+   python hw3_analysis.py
 ```
    This prints data inspection output, grouping/correlation results, and
    regression results to the terminal, and saves plots to `figures/`.
-
-5. (Optional) Run the Pandas vs Polars comparison:
+5. Run the tests:
+```bash
+   pytest test_analysis.py
+```
+6. (Optional) Run the Pandas vs Polars comparison:
 ```bash
    python polars_comparison.py
 ```
-6. For the Rust notebook (Question 2): install the Rust Jupyter kernel with
+7. For the Rust notebook (Question 2): install the Rust Jupyter kernel with
 ```bash
    cargo install evcxr_jupyter
    evcxr_jupyter --install
@@ -109,20 +114,9 @@ analysis beyond the scope of this project.
   between two continuous variables, and the plot makes visible how the fitted
   line fails to closely track the data in the middle and later ranges of SPX.
 
-## Limitations & Next Steps
-- This analysis only tests two candidate variables (EUR/USD, SPX) against
-  GLD; many other factors likely influence gold prices (inflation, interest
-  rates, central bank demand, geopolitical events) that are outside the scope
-  of this dataset.
-- Yearly correlation/R² values are based on relatively small samples (~250
-  trading days per year), which may make them less stable.
-- Findings here are correlational, not causal — no claims are made about
-  *why* GLD and SPX or EUR/USD move as they do.
-
-# Polars vs Pandas Performance Comparison
-
+## Polars vs Pandas Performance Comparison
 I also compared Pandas and Polars performance on two operations: reading the
-CSV file and grouping by year to compute yearly averages (polars_comparison.py).
+CSV file and grouping by year to compute yearly averages (`polars_comparison.py`).
 
 Results were inconsistent between two separate runs — in one run Polars was
 faster at reading the CSV, but in the groupby comparison Polars was slower
@@ -139,8 +133,57 @@ On a small dataset like this, that overhead itself (e.g. starting up
 Polars's engine) may outweigh any gains, which could explain why Polars was
 not consistently faster here.
 
-## Files
-- `analysis.py` — main data analysis and modeling script
+## Limitations & Next Steps
+- This analysis only tests two candidate variables (EUR/USD, SPX) against
+  GLD; many other factors likely influence gold prices (inflation, interest
+  rates, central bank demand, geopolitical events) that are outside the scope
+  of this dataset.
+- Yearly correlation/R² values are based on relatively small samples (~250
+  trading days per year), which may make them less stable.
+- Findings here are correlational, not causal — no claims are made about
+  *why* GLD and SPX or EUR/USD move as they do.
+
+---
+
+# Week 3: Testing & CI
+
+## What Was Added
+- Refactored the Week 2 analysis script into functions (`hw3_analysis.py`),
+  so that individual pieces of logic can be tested independently rather than
+  only running as one long script.
+- Wrote 5 tests in `test_analysis.py`:
+  - **4 unit tests** covering core functions: data loading (`load_data`),
+    data quality checks (`check_data_quality`), yearly grouping
+    (`yearly_average`), and model training (`train_gld_spx_model`). Most of
+    these use small, hand-built test data with known expected results rather
+    than the real dataset, so the correct answer can be verified by hand.
+  - **1 system test** (`test_full_pipeline`) that runs the full pipeline
+    end-to-end on the real dataset and checks that each step produces
+    reasonable output (e.g., no missing/duplicate rows, R² between 0 and 1).
+- Set up a GitHub Actions CI workflow (`.github/workflows/tests.yml`) that
+  automatically installs dependencies and runs all tests on every push and
+  pull request, using a fresh Ubuntu environment (not just my own machine).
+- Added the CI status badge at the top of this README.
+
+## Running the Tests Locally
+```bash
+pytest test_analysis.py
+```
+
+## Files (Week 3 additions)
+- `hw3_analysis.py` — refactored analysis script (functions used by both
+  `hw3_analysis.py` itself and `test_analysis.py`)
+- `hw2_analysis.py` — original Week 2 version, kept for reference
+- `test_analysis.py` — unit tests + system test
+- `.github/workflows/tests.yml` — GitHub Actions CI workflow config
+
+---
+
+# Files (all)
+- `hw3_analysis.py` — main data analysis and modeling script (current version)
+- `hw2_analysis.py` — earlier Week 2 version (kept for reference)
+- `test_analysis.py` — unit tests and a system test for the core functions
+- `.github/workflows/tests.yml` — GitHub Actions CI workflow that runs tests on every push
 - `data/gold_data_2015_25.csv` — dataset
 - `figures/` — generated plots
 - `notebooks/rust_vs_python_intro.ipynb` — Rust ownership notebook (Question 2)
