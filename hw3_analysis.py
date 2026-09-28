@@ -27,19 +27,20 @@ def yearly_average(df, columns):
     return df.groupby("Year")[columns].mean()
 
 
+def _per_year(df, func):
+    return {
+        year: func(group)
+        for year, group in df.groupby("Year", sort=False)
+    }
+
+
 def yearly_correlation(df, col1, col2):
     """Calculate each year's correlation between two columns.
 
     Returns:
         A mapping from year to correlation.
     """
-    years = df["Year"].unique()
-    result = {}
-    for yr in years:
-        year_df = df[df["Year"] == yr]
-        corr = year_df[col1].corr(year_df[col2])
-        result[yr] = corr
-    return result
+    return _per_year(df, lambda group: group[col1].corr(group[col2]))
 
 
 def train_gld_spx_model(df):
@@ -58,16 +59,7 @@ def train_gld_spx_model(df):
 
 def yearly_model_scores(df):
     """Fit yearly GLD-on-SPX models and return training R-squared scores."""
-    years = df["Year"].unique()
-    scores = {}
-    for yr in years:
-        year_df = df[df["Year"] == yr]
-        X_year = year_df[["SPX"]]
-        y_year = year_df["GLD"]
-        model_year = LinearRegression()
-        model_year.fit(X_year, y_year)
-        scores[yr] = model_year.score(X_year, y_year)
-    return scores
+    return _per_year(df, lambda group: train_gld_spx_model(group)[1])
 
 
 def plot_scatter_with_regression(df, model, output_path):
