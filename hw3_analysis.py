@@ -2,33 +2,37 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 
-## Load the gold price CSV and return a cleaned DataFrame 
-# with Date as datetime and a Year column extracted
-def load_data(filepath):
 
+def load_data(filepath):
+    """Load gold prices and add a datetime-derived Year column."""
     df = pd.read_csv(filepath)
     df["Date"] = pd.to_datetime(df["Date"])
     df["Year"] = df["Date"].dt.year
     return df
 
-## Return a dict with missing value count and duplicate row count
+
 def check_data_quality(df):
-    
+    """Count missing values and duplicate rows.
+
+    Returns:
+        Counts under "missing_values" and "duplicate_rows".
+    """
     missing = int(df.isnull().sum().sum())
     duplicates = int(df.duplicated().sum())
-    return {"missing_values": missing, 
-            "duplicate_rows": duplicates
-            }
+    return {"missing_values": missing, "duplicate_rows": duplicates}
 
-## Return the yearly mean of the given columns, grouped by Year
+
 def yearly_average(df, columns):
-    
+    """Calculate yearly means for the selected columns."""
     return df.groupby("Year")[columns].mean()
 
 
-## Return a dict mapping year -> correlation between col1 and col2
 def yearly_correlation(df, col1, col2):
-    
+    """Calculate each year's correlation between two columns.
+
+    Returns:
+        A mapping from year to correlation.
+    """
     years = df["Year"].unique()
     result = {}
     for yr in years:
@@ -37,10 +41,13 @@ def yearly_correlation(df, col1, col2):
         result[yr] = corr
     return result
 
-## Train a linear regression model predicting GLD from SPX
-# Returns the fitted model and its R^2 score on the training data
+
 def train_gld_spx_model(df):
-    
+    """Fit a GLD-on-SPX linear regression model.
+
+    Returns:
+        The fitted model and its training R-squared score.
+    """
     X = df[["SPX"]]
     y = df["GLD"]
     model = LinearRegression()
@@ -48,10 +55,9 @@ def train_gld_spx_model(df):
     r2 = model.score(X, y)
     return model, r2
 
-## Train a separate SPX->GLD linear regression per year
-# Returns a dict mapping year -> R^2 score
+
 def yearly_model_scores(df):
-    
+    """Fit yearly GLD-on-SPX models and return training R-squared scores."""
     years = df["Year"].unique()
     scores = {}
     for yr in years:
@@ -63,9 +69,9 @@ def yearly_model_scores(df):
         scores[yr] = model_year.score(X_year, y_year)
     return scores
 
-## Scatter plot of SPX vs GLD with the fitted regression line, saved to output_path
+
 def plot_scatter_with_regression(df, model, output_path):
-    
+    """Save an SPX-versus-GLD scatter plot with the fitted regression line."""
     X = df[["SPX"]]
     y = df["GLD"]
     plt.figure()
@@ -77,9 +83,9 @@ def plot_scatter_with_regression(df, model, output_path):
     plt.savefig(output_path)
     plt.close()
 
-## Line chart of GLD price over time, saved to output_path
+
 def plot_gld_over_time(df, output_path):
-    
+    """Save a line plot of GLD prices over time."""
     plt.figure()
     plt.plot(df["Date"], df["GLD"])
     plt.xlabel("Date")

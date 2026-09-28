@@ -16,9 +16,9 @@ from hw3_analysis import yearly_model_scores
 
 def test_load_data(tmp_path):
     csv_path = tmp_path / "gold.csv"
-    pd.DataFrame(
-        {"Date": ["2021-12-31", "2022-01-01"], "GLD": [180, 181]}
-    ).to_csv(csv_path, index=False)
+    pd.DataFrame({"Date": ["2021-12-31", "2022-01-01"], "GLD": [180, 181]}).to_csv(
+        csv_path, index=False
+    )
 
     df = load_data(csv_path)
 
@@ -111,9 +111,7 @@ def test_yearly_average_non_numeric_values_raise_type_error():
 
 
 def test_train_gld_spx_model():
-    test_df = pd.DataFrame(
-        {"SPX": [1, 2, 3, 4], "GLD": [300, 500, 700, 900]}
-    )
+    test_df = pd.DataFrame({"SPX": [1, 2, 3, 4], "GLD": [300, 500, 700, 900]})
 
     _, r2 = train_gld_spx_model(test_df)
 
@@ -134,9 +132,7 @@ def test_train_gld_spx_model_supports_zero_and_negative_values():
 def test_train_gld_spx_model_single_row_has_undefined_r2():
     test_df = pd.DataFrame({"SPX": [10], "GLD": [200]})
 
-    with pytest.warns(
-        UndefinedMetricWarning, match=r"R\^2 score is not well-defined"
-    ):
+    with pytest.warns(UndefinedMetricWarning, match=r"R\^2 score is not well-defined"):
         model, r2 = train_gld_spx_model(test_df)
 
     assert model.predict(pd.DataFrame({"SPX": [10]})).tolist() == [200]
