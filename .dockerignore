@@ -1,0 +1,6 @@
+# Exclude repository metadata, environments, caches, notebooks, figures, docs, and all other non-runtime files.
+**
+!requirements.txt
+!hw3_analysis.py
+!data/
+!data/gold_data_2015_25.csv
