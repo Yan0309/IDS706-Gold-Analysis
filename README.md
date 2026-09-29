@@ -1,190 +1,187 @@
-# IDS706-Gold-Analysis
+# Gold Price Relationship Analysis
 
 [![Run Tests](https://github.com/Yan0309/IDS706-Gold-Analysis/actions/workflows/tests.yml/badge.svg)](https://github.com/Yan0309/IDS706-Gold-Analysis/actions/workflows/tests.yml)
 
-# Week 2: Gold Price Analysis (2015–2025)
+## Problem
 
-## Overview
-This project explores the `gold_data_2015_25.csv` dataset, which contains daily
-values for SPX (S&P 500), GLD (gold ETF price), USO (oil), SLV (silver), and
-the EUR/USD exchange rate from 2015 to 2025. The goal was to explore whether
-GLD price shows a stable relationship with EUR/USD and SPX, and to practice
-basic data analysis and a first machine learning experiment with linear
-regression.
+Gold is often treated as a hedge against stocks and the U.S. dollar. If GLD's
+relationships with SPX and EUR/USD are not stable across the sample, an
+investor relying on one overall correlation or R² could misjudge gold's
+diversification value and make poor allocation decisions.
 
-## Setup & How to Run
+Does GLD have a stable relationship with EUR/USD and SPX from 2015-01-02 to
+2025-08-14? The dataset contains 2,666 trading days. 2025 is a partial year,
+ending August 14, which affects that year's averages and correlations.
 
-### Requirements
-- Python 3.11+
-- Rust (`rustc`/`cargo`) and the `evcxr_jupyter` kernel, for the Rust notebook (Question 2)
-- VS Code with the Python and Jupyter extensions (recommended)
+## Data & Cleaning
 
-### Steps
-1. Clone this repository:
+- `Date` is parsed as datetime and `Year` is extracted for year-based analysis.
+- `check_data_quality` reports 0 missing values and 0 duplicate rows.
+- The regression raises `ValueError` when input contains NaN; it does not
+  silently drop rows. This behavior is tested.
+- Daily-return outliers are flagged when `|z| > 4`: 17 SPX days and 9 GLD days,
+  clustered in March 2020 and April 2025. They are retained because they are
+  real market events. Returns R² is 0.002 with outliers and 0.000 without,
+  leaving the conclusion insensitive to them.
+
+## Methods
+
+- Calculate yearly average GLD prices and EUR/USD rates.
+- Compare the overall GLD-EUR/USD correlation with correlations calculated
+  separately by year.
+- Fit linear regression models for SPX -> GLD using both prices and daily
+  returns, reporting in-sample R² overall and by year.
+
+## Key Findings
+
+In an earlier version, I noticed that the price regression had a high overall
+R² of 0.859, while the yearly R² values were mostly much lower, and I suspected
+that shared long-term price trends were inflating the combined result. In this
+version I tested that idea by refitting the same model on daily returns, where
+the overall R² falls to 0.002 and yearly returns R² ranges from 0.000 to 0.125.
+The result is consistent with the shared-trend explanation. It does not prove
+causality, but it suggests that the high price R² reflects common trends more
+than a stable day-to-day relationship.
+
+- Overall GLD-EUR/USD correlation is -0.146, while yearly correlations are
+  often strongly positive, a Simpson's-paradox-like pattern.
+- Price R² is 0.859, compared with daily-returns R² of 0.002; yearly returns
+  R² ranges from 0.000 to 0.125. The contrast is consistent with shared upward
+  price trends producing a spurious-regression pattern.
+
+<img src="figures/spx_vs_gld_scatter.png" width="400" alt="SPX and GLD prices with fitted regression line"> <img src="figures/returns_scatter.png" width="400" alt="SPX and GLD daily returns with fitted regression line">
+
+## Setup & Usage
+
+Requires Python 3.11 or newer.
+
 ```bash
-   git clone git@github.com:Yan0309/IDS706-Gold-Analysis.git
-   cd IDS706-Gold-Analysis
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+make check
+python hw3_analysis.py
 ```
-2. Create and activate a virtual environment:
+
+The script prints the analysis results and writes plots to `figures/`.
+
+Optional tools:
+
+- Pandas/Polars comparison: install with `pip install polars`, then run
+  `python polars_comparison.py`.
+- Rust notebook: install the `evcxr_jupyter` kernel with
+  `cargo install evcxr_jupyter` and `evcxr_jupyter --install`, then open
+  `notebooks/rust_vs_python_intro.ipynb` using the Rust kernel.
+
+## Testing & CI
+
+The suite has 33 pytest cases, including edge cases for empty data, missing
+columns, unparseable dates, NaN, single-row years, plot output, and return
+outliers. A seeded synthetic-data test demonstrates that shared trends can
+inflate price R² while returns R² stays low.
+
+`make check` runs `black --check`, `flake8`, and `pytest`, the same checks used
+by CI. GitHub Actions tests Python 3.11, 3.12, and 3.13 on pushes to `main`,
+pull requests, a weekly schedule, and manual dispatch.
+
+<img src="docs/images/ci_passing.png" width="500" alt="Passing CI workflow">
+
+## Docker
+
 ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
+docker build -t gold-analysis .
+docker run --rm -v "$PWD/docker-output:/app/figures" gold-analysis
 ```
-3. Install dependencies:
-```bash
-   pip install pandas matplotlib seaborn scikit-learn polars jupyter pytest
-```
-4. Run the main analysis script:
-```bash
-   python hw3_analysis.py
-```
-   This prints data inspection output, grouping/correlation results, and
-   regression results to the terminal, and saves plots to `figures/`.
-5. Run the tests:
-```bash
-   pytest test_analysis.py
-```
-6. (Optional) Run the Pandas vs Polars comparison:
-```bash
-   python polars_comparison.py
-```
-7. For the Rust notebook (Question 2): install the Rust Jupyter kernel with
-```bash
-   cargo install evcxr_jupyter
-   evcxr_jupyter --install
-```
-   then open `notebooks/rust_vs_python_intro.ipynb` in VS Code and select the
-   **Rust** kernel.
 
-## Data Import & Inspection
-- Loaded the CSV with pandas and inspected it using `.head()`, `.info()`,
-  and `.describe()`.
-- No missing values and no duplicate rows were found.
-- The `Date` column was originally stored as a string, which would have
-  limited time-based analysis (e.g., extracting year, sorting chronologically).
-  It was converted to `datetime` using `pd.to_datetime()`, and a `Year` column
-  was extracted for grouping.
+The container writes analysis plots to the mounted `docker-output/` directory;
+results match a local run.
 
-## Part 1: GLD vs EUR/USD
-Using `groupby("Year")` and `.mean()`, I computed the yearly average GLD price
-and EUR/USD rate. GLD shows a strong, almost continuous upward trend over the
-decade (from ~$111 in 2015 to ~$289 in 2025), while EUR/USD mostly moved
-within a narrower range (roughly 0.96–1.25) without a clear long-term trend.
+### What I Learned
 
-I then computed the correlation between GLD and EUR/USD two ways:
-- **Overall (all 10 years combined):** correlation ≈ -0.146 (weak negative)
-- **Year by year:** correlation varied widely and was often *positive*
-  (e.g., 0.85 in 2018, 0.94 in 2025), with only a couple of years showing
-  negative correlation (e.g., -0.73 in 2019)
+Building the container taught me that a Linux image has no display, so
+matplotlib must run headlessly with `MPLBACKEND=Agg`. I also learned that files
+created inside the container disappear with `--rm` unless a volume is mounted,
+and that Docker layer ordering matters: after a code-only change, the
+dependency install shows `CACHED` because `requirements.txt` is copied before
+the script. The image is 825 MB, mostly from the scientific Python
+dependencies, but the important payoff is reproducibility: the same script
+produces matching analysis results in a fresh Linux container and on my Mac.
 
-This mismatch between the overall and yearly correlations is an example of
-**Simpson's Paradox**: the weak negative correlation at the 10-year level is
-likely driven by the fact that GLD trends upward over time while EUR/USD does
-not, rather than the two variables consistently moving in opposite directions
-within any given year. The exact cause of the year-to-year variation is not
-clear from this dataset alone and would need further research (e.g., macro
-events per year, or simply small yearly sample sizes of ~250 trading days).
+<img src="docs/images/docker_build.png" width="600" alt="Docker image build">
 
-## Part 2: GLD vs SPX — Linear Regression
-I trained a simple linear regression model (`scikit-learn`) using SPX to
-predict GLD.
+<img src="docs/images/docker_run.png" width="600" alt="Docker analysis run">
 
-- **Overall model (10 years of data):** R² ≈ 0.859 — SPX appears to explain
-  about 86% of the variance in GLD.
-- **Year-by-year models:** R² values were mostly much lower and inconsistent
-  (e.g., 0.016 in 2015, 0.003 in 2021, 0.03 in 2025), with 2024 as a notable
-  exception (R² ≈ 0.826).
+## Refactoring
 
-This gap suggests the high overall R² is likely inflated by the fact that
-**both SPX and GLD trend upward over the decade**, rather than reflecting a
-consistently strong relationship between them within any single year. This is
-a useful reminder that a high R² over a long time span doesn't necessarily
-mean two variables are meaningfully predictive of each other in the short
-term — it may partly reflect a shared long-term trend instead. It's an
-interesting parallel to the idea that long-term and short-term views of the
-same assets can tell different stories, though confirming that would require
-analysis beyond the scope of this project.
+### What I Changed
 
-## Visualizations
-- **`figures/gld_vs_time.png`** — Line chart of GLD price over time. Chosen
-  to clearly show the trend and timing of major shifts (e.g., a spike around
-  2020, and a sharp rise from 2024 onward).
-- **`figures/spx_vs_gld_scatter.png`** — Scatter plot of SPX vs GLD with the
-  fitted regression line overlaid. Chosen because this is a relationship
-  between two continuous variables, and the plot makes visible how the fitted
-  line fails to closely track the data in the middle and later ranges of SPX.
+I extracted `_per_year(df, func)` so yearly grouping is implemented once. I
+also reused `train_gld_spx_model` inside `yearly_model_scores` and converted
+explanatory comments into docstrings.
 
-## Polars vs Pandas Performance Comparison
-I also compared Pandas and Polars performance on two operations: reading the
-CSV file and grouping by year to compute yearly averages (`polars_comparison.py`).
+### Why
 
-Results were inconsistent between two separate runs — in one run Polars was
-faster at reading the CSV, but in the groupby comparison Polars was slower
-than Pandas. This inconsistency suggests the results are not reliable from a
-single run and would need to be averaged over multiple runs to draw a solid
-conclusion.
+Before, the loop over years was written twice, in `yearly_correlation` and
+`yearly_model_scores`. That meant any change to yearly grouping or ordering
+had to be made in two places and could drift; `yearly_model_scores` also
+duplicated model-fitting logic instead of calling the existing training
+function.
 
-More importantly, this dataset is quite small (2,666 rows), which likely
-limits any real performance difference between the two libraries. Polars is
-built on a compiled Rust engine and is generally expected to show its
-advantage on larger datasets and more complex operations, where the
-per-operation overhead becomes negligible relative to the actual work done.
-On a small dataset like this, that overhead itself (e.g. starting up
-Polars's engine) may outweigh any gains, which could explain why Polars was
-not consistently faster here.
+### How I Verified It
+
+All 29 tests (at the time of the refactor) still passed. Because the tests only
+check values, I also compared the final lines of the program's output before
+and after the refactor. The only difference was that yearly dictionary keys
+printed as Python `int` instead of `np.int32`; the numeric values were
+identical, so I accepted the change and noted it in the commit message.
+
+### How I Used AI and Where I Disagreed
+
+- My initial refactoring plan (implemented by Copilot) added a
+  `_fit_gld_spx_model` helper, but on review `train_gld_spx_model` only
+  delegated to it. I had it removed because it added indirection without
+  reducing complexity.
+- In its refactoring audit, Copilot recommended extracting the shared
+  Matplotlib boilerplate into a callback-based `_save_plot` helper and
+  parameterizing the SPX/GLD column names. I rejected both: there were only
+  two short plotting functions, and the project analyzes one variable pair, so
+  the abstractions would add complexity without benefit. I later added
+  optional plot labels only when the returns analysis created a real need.
+- Copilot claimed that the plotting functions had no tests. I checked the test
+  file with `grep` and found dedicated tests for both plotting functions, so I
+  rejected that claim.
+- Copilot once added tests with incorrect indentation, so pytest silently did
+  not collect them; the suite still showed "12 passed". Copilot found this
+  itself in a later turn. The lesson for me was that a green test run does not
+  mean the tests actually ran, so I now check the collected test count.
+
+<img src="docs/images/refactor_diff.png" width="700" alt="Analysis refactoring diff">
 
 ## Limitations & Next Steps
-- This analysis only tests two candidate variables (EUR/USD, SPX) against
-  GLD; many other factors likely influence gold prices (inflation, interest
-  rates, central bank demand, geopolitical events) that are outside the scope
-  of this dataset.
-- Yearly correlation/R² values are based on relatively small samples (~250
-  trading days per year), which may make them less stable.
-- Findings here are correlational, not causal — no claims are made about
-  *why* GLD and SPX or EUR/USD move as they do.
 
----
+- The dataset ends on 2025-08-14, so 2025 is only a partial year and its
+  averages, correlations, and R² values are not directly comparable with full
+  calendar years.
+- The analysis examines only SPX and EUR/USD as relationships with GLD, even
+  though inflation, interest rates, central-bank demand, and geopolitical
+  events may also matter.
+- R² is measured in-sample, the models are linear, and the results are
+  correlational rather than causal; lagged and nonlinear relationships are not
+  tested.
+- Next step: use an Engle-Granger cointegration test to check for a stable
+  long-run relationship, then test whether SPX returns lead GLD returns and
+  add interest rates or inflation as additional variables.
 
-# Week 3: Testing & CI
+## Files
 
-## What Was Added
-- Refactored the Week 2 analysis script into functions (`hw3_analysis.py`),
-  so that individual pieces of logic can be tested independently rather than
-  only running as one long script.
-- Wrote 5 tests in `test_analysis.py`:
-  - **4 unit tests** covering core functions: data loading (`load_data`),
-    data quality checks (`check_data_quality`), yearly grouping
-    (`yearly_average`), and model training (`train_gld_spx_model`). Most of
-    these use small, hand-built test data with known expected results rather
-    than the real dataset, so the correct answer can be verified by hand.
-  - **1 system test** (`test_full_pipeline`) that runs the full pipeline
-    end-to-end on the real dataset and checks that each step produces
-    reasonable output (e.g., no missing/duplicate rows, R² between 0 and 1).
-- Set up a GitHub Actions CI workflow (`.github/workflows/tests.yml`) that
-  automatically installs dependencies and runs all tests on every push and
-  pull request, using a fresh Ubuntu environment (not just my own machine).
-- Added the CI status badge at the top of this README.
-
-## Running the Tests Locally
-```bash
-pytest test_analysis.py
-```
-
-## Files (Week 3 additions)
-- `hw3_analysis.py` — refactored analysis script (functions used by both
-  `hw3_analysis.py` itself and `test_analysis.py`)
-- `hw2_analysis.py` — original Week 2 version, kept for reference
-- `test_analysis.py` — unit tests + system test
-- `.github/workflows/tests.yml` — GitHub Actions CI workflow config
-
----
-
-# Files (all)
-- `hw3_analysis.py` — main data analysis and modeling script (current version)
-- `hw2_analysis.py` — earlier Week 2 version (kept for reference)
-- `test_analysis.py` — unit tests and a system test for the core functions
-- `.github/workflows/tests.yml` — GitHub Actions CI workflow that runs tests on every push
-- `data/gold_data_2015_25.csv` — dataset
-- `figures/` — generated plots
-- `notebooks/rust_vs_python_intro.ipynb` — Rust ownership notebook (Question 2)
-- `polars_comparison.py` — Pandas vs Polars performance comparison
+- `hw3_analysis.py` - analysis functions, plots, and executable pipeline.
+- `hw2_analysis.py` - original analysis script.
+- `test_analysis.py` - unit, edge-case, synthetic-data, and pipeline tests.
+- `data/gold_data_2015_25.csv` - daily market dataset.
+- `figures/` - generated analysis plots.
+- `polars_comparison.py` - Pandas and Polars timing comparison.
+- `notebooks/rust_vs_python_intro.ipynb` - Rust/Python notebook.
+- `Makefile`, `requirements*.txt`, and `Dockerfile` - local checks,
+  dependencies, and container setup.
+- `.github/workflows/tests.yml` - automated CI workflow.
+- `docs/images/` - CI, Docker, and refactoring screenshots.
