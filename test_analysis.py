@@ -1,13 +1,16 @@
 import math
 
+import numpy as np
 import pandas as pd
 import pytest
 from sklearn.exceptions import UndefinedMetricWarning
 
 from hw3_analysis import check_data_quality
+from hw3_analysis import daily_returns
 from hw3_analysis import load_data
 from hw3_analysis import plot_gld_over_time
 from hw3_analysis import plot_scatter_with_regression
+from hw3_analysis import return_outliers
 from hw3_analysis import train_gld_spx_model
 from hw3_analysis import yearly_average
 from hw3_analysis import yearly_correlation
@@ -116,6 +119,75 @@ def test_train_gld_spx_model():
     _, r2 = train_gld_spx_model(test_df)
 
     assert r2 > 0.99
+
+
+def test_daily_returns_sorts_full_series_drops_first_row_and_preserves_year():
+    test_df = pd.DataFrame(
+        {
+            "Date": pd.to_datetime(
+                ["2021-01-04", "2020-12-30", "2021-01-01", "2020-12-31"]
+            ),
+            "Year": [2021, 2020, 2021, 2020],
+            "SPX": [133.1, 100, 121, 110],
+            "GLD": [266.2, 200, 242, 220],
+        }
+    )
+
+    result = daily_returns(test_df)
+
+    assert result["Date"].tolist() == pd.to_datetime(
+        ["2020-12-31", "2021-01-01", "2021-01-04"]
+    ).tolist()
+    assert result["Year"].tolist() == [2020, 2021, 2021]
+    assert result["SPX"].tolist() == pytest.approx([0.1, 0.1, 0.1])
+    assert result["GLD"].tolist() == pytest.approx([0.1, 0.1, 0.1])
+
+
+def test_shared_price_trend_can_produce_high_price_r2_and_low_return_r2():
+    rng = np.random.default_rng(42)
+    days = np.arange(1000, dtype=float)
+    test_df = pd.DataFrame(
+        {
+            "Date": pd.date_range("2020-01-01", periods=len(days)),
+            "Year": 2020,
+            "SPX": 5000 + 20 * days + rng.normal(0, 250, len(days)),
+            "GLD": 2500 + 10 * days + rng.normal(0, 250, len(days)),
+        }
+    )
+
+    _, price_r2 = train_gld_spx_model(test_df)
+    _, returns_r2 = train_gld_spx_model(daily_returns(test_df))
+
+    assert price_r2 > 0.9
+    assert returns_r2 < 0.1
+
+
+def test_return_outliers_flags_only_obvious_spike_day():
+    returns_df = pd.DataFrame(
+        {
+            "SPX": [1.0] * 19 + [100.0],
+            "GLD": list(range(100, 120)),
+        }
+    )
+
+    result = return_outliers(returns_df)
+
+    assert result.to_numpy().sum() == 1
+    assert result.loc[19, "SPX"]
+    assert not result["GLD"].any()
+
+
+def test_return_outliers_flags_nothing_without_spikes():
+    returns_df = pd.DataFrame(
+        {
+            "SPX": list(range(1, 21)),
+            "GLD": list(range(101, 121)),
+        }
+    )
+
+    result = return_outliers(returns_df)
+
+    assert not result.to_numpy().any()
 
 
 def test_train_gld_spx_model_supports_zero_and_negative_values():

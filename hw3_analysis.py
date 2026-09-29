@@ -62,16 +62,37 @@ def yearly_model_scores(df):
     return _per_year(df, lambda group: train_gld_spx_model(group)[1])
 
 
-def plot_scatter_with_regression(df, model, output_path):
+def daily_returns(df, columns=("SPX", "GLD")):
+    """Calculate returns across the full date-sorted series."""
+    result = df.sort_values("Date").loc[:, ["Date", "Year", *columns]].copy()
+    result[list(columns)] = result[list(columns)].pct_change()
+    return result.dropna(subset=list(columns)).reset_index(drop=True)
+
+
+def return_outliers(returns_df, columns=("SPX", "GLD"), threshold=4):
+    """Return a boolean frame marking returns beyond the z-score threshold."""
+    values = returns_df[list(columns)]
+    z_scores = (values - values.mean()) / values.std()
+    return z_scores.abs() > threshold
+
+
+def plot_scatter_with_regression(
+    df,
+    model,
+    output_path,
+    title="The relationship between spx and gld",
+    xlabel="SPX index",
+    ylabel="Gold Price",
+):
     """Save an SPX-versus-GLD scatter plot with the fitted regression line."""
     X = df[["SPX"]]
     y = df["GLD"]
     plt.figure()
     plt.scatter(X, y)
     plt.plot(X, model.predict(X), color="red")
-    plt.xlabel("SPX index")
-    plt.ylabel("Gold Price")
-    plt.title("The relationship between spx and gld")
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.title(title)
     plt.savefig(output_path)
     plt.close()
 
@@ -106,10 +127,41 @@ def main():
     model, r2 = train_gld_spx_model(df)
     print(model.coef_)
     print(model.intercept_)
-    print(r2)
+    returns_df = daily_returns(df)
+    returns_model, returns_r2 = train_gld_spx_model(returns_df)
+    print(f"Overall price R²: {r2:.3f}; overall returns R²: {returns_r2:.3f}")
     print(yearly_model_scores(df))
+    yearly_returns_r2 = {
+        year: round(score, 3)
+        for year, score in yearly_model_scores(returns_df).items()
+    }
+    print(f"Yearly returns R²: {yearly_returns_r2}")
+
+    outlier_masks = return_outliers(returns_df)
+    for column in ("SPX", "GLD"):
+        dates = returns_df.loc[
+            outlier_masks[column], "Date"
+        ].dt.strftime("%Y-%m-%d").tolist()
+        print(f"{column} return outliers (|z| > 4): {len(dates)} days: {dates}")
+
+    outlier_days = outlier_masks.any(axis=1)
+    _, returns_without_outliers_r2 = train_gld_spx_model(
+        returns_df.loc[~outlier_days]
+    )
+    print(
+        "Returns R² without outlier days: "
+        f"{returns_without_outliers_r2:.3f}"
+    )
 
     plot_scatter_with_regression(df, model, "figures/spx_vs_gld_scatter.png")
+    plot_scatter_with_regression(
+        returns_df,
+        returns_model,
+        "figures/returns_scatter.png",
+        title="Daily returns: SPX vs GLD",
+        xlabel="SPX daily return",
+        ylabel="GLD daily return",
+    )
     plot_gld_over_time(df, "figures/gld_vs_time.png")
 
 
