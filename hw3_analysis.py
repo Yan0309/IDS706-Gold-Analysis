@@ -28,10 +28,7 @@ def yearly_average(df, columns):
 
 
 def _per_year(df, func):
-    return {
-        year: func(group)
-        for year, group in df.groupby("Year", sort=False)
-    }
+    return {year: func(group) for year, group in df.groupby("Year", sort=False)}
 
 
 def yearly_correlation(df, col1, col2):
@@ -132,26 +129,22 @@ def main():
     print(f"Overall price R²: {r2:.3f}; overall returns R²: {returns_r2:.3f}")
     print(yearly_model_scores(df))
     yearly_returns_r2 = {
-        year: round(score, 3)
-        for year, score in yearly_model_scores(returns_df).items()
+        year: round(score, 3) for year, score in yearly_model_scores(returns_df).items()
     }
     print(f"Yearly returns R²: {yearly_returns_r2}")
 
     outlier_masks = return_outliers(returns_df)
     for column in ("SPX", "GLD"):
-        dates = returns_df.loc[
-            outlier_masks[column], "Date"
-        ].dt.strftime("%Y-%m-%d").tolist()
+        dates = (
+            returns_df.loc[outlier_masks[column], "Date"]
+            .dt.strftime("%Y-%m-%d")
+            .tolist()
+        )
         print(f"{column} return outliers (|z| > 4): {len(dates)} days: {dates}")
 
     outlier_days = outlier_masks.any(axis=1)
-    _, returns_without_outliers_r2 = train_gld_spx_model(
-        returns_df.loc[~outlier_days]
-    )
-    print(
-        "Returns R² without outlier days: "
-        f"{returns_without_outliers_r2:.3f}"
-    )
+    _, returns_without_outliers_r2 = train_gld_spx_model(returns_df.loc[~outlier_days])
+    print("Returns R² without outlier days: " f"{returns_without_outliers_r2:.3f}")
 
     plot_scatter_with_regression(df, model, "figures/spx_vs_gld_scatter.png")
     plot_scatter_with_regression(

@@ -135,9 +135,10 @@ def test_daily_returns_sorts_full_series_drops_first_row_and_preserves_year():
 
     result = daily_returns(test_df)
 
-    assert result["Date"].tolist() == pd.to_datetime(
-        ["2020-12-31", "2021-01-01", "2021-01-04"]
-    ).tolist()
+    assert (
+        result["Date"].tolist()
+        == pd.to_datetime(["2020-12-31", "2021-01-01", "2021-01-04"]).tolist()
+    )
     assert result["Year"].tolist() == [2020, 2021, 2021]
     assert result["SPX"].tolist() == pytest.approx([0.1, 0.1, 0.1])
     assert result["GLD"].tolist() == pytest.approx([0.1, 0.1, 0.1])
